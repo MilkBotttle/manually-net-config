@@ -1,0 +1,23 @@
+- hosts: localhost
+  tasks:
+    - name: fetch overcloud node names and IPs
+      shell: >
+          source ~/stackrc;
+          python ./scripts/get-overcloud-nodes.py
+      register: registered_overcloud_nodes
+
+    - name: list the overcloud nodes
+      debug: var=registered_overcloud_nodes.stdout
+    - name: add overcloud node to ansible
+      with_dict: '{{ registered_overcloud_nodes.stdout | default({}) }}'
+      add_host:
+        name: '{{ item.key }}'
+        groups: "overcloud"
+        ansible_host: '{{ item.key }}'
+        inventory_ip: '{{ item.value }}'
+
+    - name: create inventory from template
+      delegate_to: localhost
+      template:
+        src: './templates/inventory.j2'
+        dest: 'hosts'

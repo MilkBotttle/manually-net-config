@@ -1,0 +1,67 @@
+- hosts: Compute
+  tasks:
+    - name: Create first net-config folder
+      file:
+        path: /root/first-network
+        state: directory
+
+    - name: Copy nic config to node
+      template:
+        src: compute-nic-config.yaml.j2
+        dest: /root/first-network/compute.yaml
+
+    - name: Copy nic map to node
+      copy:
+        src: net-mapping.yaml
+        dest: /root/first-network/net-mapping.yaml
+
+    - name: Config network first time
+      command: os-net-config -c /root/first-network/compute.yaml -m /root/first-network/net-mapping.yaml -v --detailed-exit-codes
+      async: 180
+      poll: 10
+      register: os_net_config_upgrade
+      failed_when: os_net_config_upgrade.rc not in [0,2]
+
+    - name: Restart eno1 and bond0
+      command: bash -c "ifdown eno1 && ifup eno1; ifup bond0"
+      async: 180
+      poll: 10
+
+    - name: get offline repository
+      get_url:
+        url="http://{{nsx_manager_vip}}:8088/uc-ooo.repo"
+        dest="/etc/yum.repos.d/00-ooo.repo"
+
+    - name: clean yum
+      command: bash -c "yum clean all"
+
+    - name: remove ovs
+      yum:
+       name: openvswitch
+       state: absent
+
+    - name: get pkgs
+      get_url:
+        url="http://{{nsx_manager_vip}}:8080/repository/2.4.0.0.0.12456646/HostComponents/rhel76_x86_64/nsx-lcp-2.4.0.0.0.12454259-rhel76_x86_64.tar.gz"
+        dest="/root/vmware.tar.gz"
+      register: new_archive
+
+    - name: Create vmware folder
+      file:
+        path: /root/vmware
+        state: directory
+    - name: Extract pkgs
+      unarchive:
+        src="/root/vmware.tar.gz"
+        dest="/root"
+        copy=node
+
+    - name: install vmware pkgs
+      command: bash -c "yum install -y /root/nsx-lcp-rhel76_x86_64/*.rpm"
+
+    # thumbprint_manager_ip: 172.21.0.81
+    # username: admin
+    # password: P@ssw0rd@888
+    # thumbprint: 58e8ade2c8791177d85a297111bd74a0118f8811276a8bd13b39a3cdfc0242f5
+    - name: Join NSX host
+      command: nsxcli -c join management-plane "{{thumbprint_manager_ip}}" username "{{nsx_username}}" password "{{nsx_password}}" thumbprint "{{nsx_thumbprint}}"

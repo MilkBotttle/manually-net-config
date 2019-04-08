@@ -1,0 +1,27 @@
+overcloud:
+  hosts:
+{% for host in groups['overcloud'] %}
+    {{host}}:
+      ansible_host: {{hostvars[host].inventory_ip}}
+      ctlplane_ip: {{hostvars[host].inventory_ip}}
+{%endfor%}
+
+Control:
+  hosts:
+{%for host in groups['overcloud'] %}
+{% if 'control' in host %}
+    {{host}}:
+      ansible_host: {{hostvars[host].inventory_ip}}
+      ctlplane_ip: {{hostvars[host].inventory_ip}}
+{% endif %}
+{% endfor %}
+
+Compute:
+  hosts:
+{%for host in groups['overcloud'] %}
+{% if 'compute' in host %}
+    {{host}}:
+      ansible_host: {{hostvars[host].inventory_ip}}
+      ctlplane_ip: {{hostvars[host].inventory_ip}}
+{% endif %}
+{% endfor %}

@@ -1,0 +1,5 @@
+nsx_manager_vip: 172.21.0.80
+thumbprint_manager_ip: 172.21.0.81
+nsx_username: admin
+nsx_password: P@ssw0rd@888
+nsx_thumbprint: 58e8ade2c8791177d85a297111bd74a0118f8811276a8bd13b39a3cdfc0242f5
