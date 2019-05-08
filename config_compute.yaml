@@ -1,50 +1,17 @@
 - hosts: Compute
   tasks:
-    - name: Create first net-config folder
-      file:
-        path: /root/first-network
-        state: directory
-
-    - name: Copy nic config to node
-      template:
-        src: compute-nic-config.yaml.j2
-        dest: /root/first-network/compute.yaml
-
-    - name: Copy nic map to node
-      copy:
-        src: net-mapping.yaml
-        dest: /root/first-network/net-mapping.yaml
-
-    - name: Config network first time
-      command: os-net-config -c /root/first-network/compute.yaml -m /root/first-network/net-mapping.yaml -v --detailed-exit-codes
-      async: 180
-      poll: 10
-      register: os_net_config_upgrade
-      failed_when: os_net_config_upgrade.rc not in [0,2]
-
-    - name: Restart eno1 and bond0
-      command: bash -c "ifdown eno1 && ifup eno1; ifup bond0"
-      async: 180
-      poll: 10
-
-    - name: get offline repository
+    - name: get offline repository from {{repo_file_url}}
       get_url:
-        url="http://{{nsx_manager_vip}}:8088/uc-ooo.repo"
+        url="{{repo_file_url}}"
         dest="/etc/yum.repos.d/00-ooo.repo"
 
     - name: clean yum
       command: bash -c "yum clean all"
 
-    - name: remove ovs
-      yum:
-       name: openvswitch
-       state: absent
-
     - name: get pkgs
       get_url:
         url="http://{{nsx_manager_vip}}:8080/repository/2.4.0.0.0.12456646/HostComponents/rhel76_x86_64/nsx-lcp-2.4.0.0.0.12454259-rhel76_x86_64.tar.gz"
         dest="/root/vmware.tar.gz"
-      register: new_archive
 
     - name: Create vmware folder
       file:
@@ -56,9 +23,34 @@
         dest="/root"
         copy=node
 
+    - name: reset bond0 TYPE
+      command: bash -c "sed -i '/TYPE=OVSPort/d' /etc/sysconfig/network-scripts/ifcfg-bond0"
+
+    - name: reset bond0 DEVICETYPE
+      command: bash -c "sed -i '/DEVICETYPE=ovs/d' /etc/sysconfig/network-scripts/ifcfg-bond0"
+
+    - name: reset bond0 OVS_BRIDGE=nsx-switch.0
+      command: bash -c "sed -i '/OVS_BRIDGE=nsx-switch.0/d' /etc/sysconfig/network-scripts/ifcfg-bond0"
+
+    - name: restart bond0
+      command: bash -c "ifdown bond0 && ifup bond0"
+
+    - name: remove old nsx-switch.0 bridge network config
+      command: bash -c "ifdown nsx-switch.0 && rm /etc/sysconfig/network-scripts/ifcfg-nsx-switch.0"
+
+    - name: remove old nsx-managed bridge network config
+      command: bash -c "ifdown nsx-managed && rm /etc/sysconfig/network-scripts/ifcfg-nsx-managed"
+
+    - name: remove ovs
+      yum:
+       name: openvswitch
+       state: absent
+
     - name: install vmware pkgs
       command: bash -c "yum install -y /root/nsx-lcp-rhel76_x86_64/*.rpm"
 
+    - name: reload kernel
+      command: bash -c "/etc/init.d/openvswitch force-reload-kmod"
     # thumbprint_manager_ip: 172.21.0.81
     # username: admin
     # password: P@ssw0rd@888

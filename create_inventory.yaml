@@ -8,13 +8,32 @@
 
     - name: list the overcloud nodes
       debug: var=registered_overcloud_nodes.stdout
+
     - name: add overcloud node to ansible
       with_dict: '{{ registered_overcloud_nodes.stdout | default({}) }}'
       add_host:
         name: '{{ item.key }}'
         groups: "overcloud"
         ansible_host: '{{ item.key }}'
-        inventory_ip: '{{ item.value }}'
+        inventory_ip: '{{ item.value[0] }}'
+
+    - name: add overcloud control node to ansible
+      with_dict: '{{ registered_overcloud_nodes.stdout | default({}) }}'
+      add_host:
+        name: '{{ item.key }}'
+        groups: "control"
+        ansible_host: '{{ item.key }}'
+        inventory_ip: '{{ item.value[0] }}'
+      when: item.value[1] == 'control'
+
+    - name: add overcloud compute node to ansible
+      with_dict: '{{ registered_overcloud_nodes.stdout | default({}) }}'
+      add_host:
+        name: '{{ item.key }}'
+        groups: "compute"
+        ansible_host: '{{ item.key }}'
+        inventory_ip: '{{ item.value[0] }}'
+      when: item.value[1] == 'compute'
 
     - name: create inventory from template
       delegate_to: localhost

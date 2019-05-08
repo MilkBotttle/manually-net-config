@@ -52,7 +52,23 @@ else:
     session = session.Session(auth=auth, verify=False)
     nova = client.Client(2, session=session)
 
-oc_servers = {server.name: server.networks['ctlplane'][0]
-              for server in nova.servers.list()
-              if server.networks.get('ctlplane')}
+#oc_servers = {server.name: server.networks['ctlplane'][0]
+#              for server in nova.servers.list()
+#              if server.networks.get('ctlplane')}
+for flavor in nova.flavors.list():
+    if flavor.name == "compute":
+        compute_id = flavor.id
+    if flavor.name == "control":
+        control_id = flavor.id
+#import pdb;pdb.set_trace();
+oc_servers = {}
+for server in nova.servers.list():
+    if server.networks.get('ctlplane'):
+        server_flavor_id = server.flavor['id']
+        if server_flavor_id == compute_id:
+            oc_servers[server.name] = [server.networks['ctlplane'][0], 'compute']
+        if server_flavor_id == control_id:
+            oc_servers[server.name] = [server.networks['ctlplane'][0], 'control']
+
 print(json.dumps(oc_servers, indent=4))
+

@@ -1,4 +1,0 @@
-interface_mapping:
-  nic1: eno1
-  nic2: enp94s0f0
-  nic3: enp94s0f1
