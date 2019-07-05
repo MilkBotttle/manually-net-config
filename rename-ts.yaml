@@ -1,0 +1,58 @@
+- hosts: localhost
+  gather_facts: no
+  tasks:
+    - include_vars:
+        file: nsx_vars.yaml
+
+    - set_fact:
+        all_node_id: []
+        all_node_fqdn: []
+        all_ts_id: []
+        all_compute_nodes: []
+        all_node_display_name: []
+
+    - set_fact:
+        all_compute_nodes: "{{ all_compute_nodes + [ hostvars[item].ctlplane_ip ] }}"
+      with_items: "{{groups['Compute']}}"
+
+      #    - name: Get all nodes
+      #      uri:
+      #        url: "https://{{nsx_manager_vip}}/api/v1/fabric/nodes"
+      #        method: GET
+      #        user: "{{nsx_username}}"
+      #        password: "{{nsx_password}}"
+      #        validate_certs: no
+      #        force_basic_auth: yes
+      #      register: all_nodes
+
+    - name: Get all transport nodes
+      uri:
+        url: "https://{{nsx_manager_vip}}/api/v1/transport-nodes"
+        method: GET
+        user: "{{nsx_username}}"
+        password: "{{nsx_password}}"
+        validate_certs: no
+        force_basic_auth: yes
+      register: ts_nodes
+
+    - set_fact:
+        all_ts_id: "{{ all_ts_id + [ item.id ] }}"
+      with_items: "{{ ts_nodes.json.results }}"
+
+    # Get all transport nodes ip_addresses
+    - set_fact:
+        all_node_id: "{{ all_node_id + [ item.id ] }}"
+        all_node_fqdn: "{{ all_node_fqdn + [ item.node_deployment_info.display_name ] }}"
+        all_node_display_name: "{{ all_node_display_name + [ item.display_name ] }}"
+      when: item.node_deployment_info.ip_addresses[0] in all_compute_nodes
+      with_items: "{{ ts_nodes.json.results }}"
+
+    - include_tasks: tasks/rename-nsxt.yaml
+      vars:
+        display_name: "{{ all_node_fqdn[my_index] }}"
+        node_id: "{{ all_node_id[my_index] }}"
+      when: all_node_id[my_index] ==  all_node_display_name[my_index]
+      with_items: "{{ all_node_id }}"
+      loop_control:
+        index_var: my_index
+

@@ -1,0 +1,25 @@
+- hosts: Compute
+  gather_facts: no
+  tasks:
+    - name: check need start patch nsx-switch-0
+      shell: >
+        ovs-vsctl show | grep 'options: {peer=br-ex-patch}'
+      ignore_errors: true
+      register: nsx_patch
+
+    - name: check need start patch br-ex-patch
+      shell: >
+        ovs-vsctl show | grep 'options: {peer="nsx-switch-0-patch"}'
+      ignore_errors: true
+      register: br_ex_patch
+
+    - name: start patch nsx-switch-0-path
+      command: bash -c "ifup nsx-switch-0-patch"
+      when: nsx_patch.rc != 0
+
+    - name: start patch br-ex-path
+      command: bash -c "ifup br-ex-patch"
+      when: br_ex_patch.rc != 0
+
+    - name: Set MTU to 9000
+      command: bash -c 'ovs-vsctl set Interface nsx-managed mtu_request=9000'

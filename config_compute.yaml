@@ -1,59 +1,105 @@
-- hosts: Compute
+- hosts: localhost
+  gather_facts: no
   tasks:
-    - name: get offline repository from {{repo_file_url}}
-      get_url:
-        url="{{repo_file_url}}"
-        dest="/etc/yum.repos.d/00-ooo.repo"
+    - include_vars:
+        file: nsx_vars.yaml
+      tags: always
+    - set_fact: ts="[]"
+      tags: always
+    - name: Get transport nodes
+      uri:
+        url: "https://{{nsx_manager_vip}}/api/v1/transport-nodes"
+        method: GET
+        user: "{{nsx_username}}"
+        password: "{{nsx_password}}"
+        validate_certs: no
+        force_basic_auth: yes
+      register: transport_nodes_data
+      tags: always
 
-    - name: clean yum
-      command: bash -c "yum clean all"
+    # Get all transport nodes ip_addresses
+    - set_fact:
+        ts: "{{ ts }} + {{ item.node_deployment_info.ip_addresses }}"
+      with_items: "{{ transport_nodes_data.json.results }}"
+      no_log: True
+      tags: always
 
-    - name: get pkgs
-      get_url:
-        url="http://{{nsx_manager_vip}}:8080/repository/2.4.0.0.0.12456646/HostComponents/rhel76_x86_64/nsx-lcp-2.4.0.0.0.12454259-rhel76_x86_64.tar.gz"
-        dest="/root/vmware.tar.gz"
+- hosts: Compute
+  gather_facts: no
+  tasks:
+    - include_vars:
+        file: nsx_vars.yaml
+    - set_fact:
+        ts: "{{hostvars['localhost']['ts']}}"
+    - block:
+        - name: Get offline repository
+          get_url:
+            url="http://{{undercloud_local_ip}}:8088/000-ooo.repo"
+            dest="/etc/yum.repos.d/00-ooo.repo"
 
-    - name: Create vmware folder
-      file:
-        path: /root/vmware
-        state: directory
-    - name: Extract pkgs
-      unarchive:
-        src="/root/vmware.tar.gz"
-        dest="/root"
-        copy=node
+        - name: Clean yum cache
+          command: bash -c "yum clean all"
 
-    - name: reset bond0 TYPE
-      command: bash -c "sed -i '/TYPE=OVSPort/d' /etc/sysconfig/network-scripts/ifcfg-bond0"
+        - name: get pkgs
+          get_url:
+            url="http://{{nsx_manager_vip}}:8080/repository/2.4.0.0.0.12456646/HostComponents/rhel76_x86_64/nsx-lcp-2.4.0.0.0.12454259-rhel76_x86_64.tar.gz"
+            dest="/root/vmware.tar.gz"
 
-    - name: reset bond0 DEVICETYPE
-      command: bash -c "sed -i '/DEVICETYPE=ovs/d' /etc/sysconfig/network-scripts/ifcfg-bond0"
+        - name: Create vmware folder
+          file:
+            path: /root/vmware
+            state: directory
 
-    - name: reset bond0 OVS_BRIDGE=nsx-switch.0
-      command: bash -c "sed -i '/OVS_BRIDGE=nsx-switch.0/d' /etc/sysconfig/network-scripts/ifcfg-bond0"
+        - name: Extract pkgs
+          unarchive:
+            src="/root/vmware.tar.gz"
+            dest="/root"
+            copy=no
 
-    - name: restart bond0
-      command: bash -c "ifdown bond0 && ifup bond0"
+        - name: reset bond0 TYPE
+          command: bash -c "sed -i '/TYPE=OVSPort/d' /etc/sysconfig/network-scripts/ifcfg-bond0"
 
-    - name: remove old nsx-switch.0 bridge network config
-      command: bash -c "ifdown nsx-switch.0 && rm /etc/sysconfig/network-scripts/ifcfg-nsx-switch.0"
+        - name: reset bond0 DEVICETYPE
+          command: bash -c "sed -i '/DEVICETYPE=ovs/d' /etc/sysconfig/network-scripts/ifcfg-bond0"
 
-    - name: remove old nsx-managed bridge network config
-      command: bash -c "ifdown nsx-managed && rm /etc/sysconfig/network-scripts/ifcfg-nsx-managed"
+        - name: reset bond0 OVS_BRIDGE=nsx-switch.0
+          command: bash -c "sed -i '/OVS_BRIDGE=nsx-switch.0/d' /etc/sysconfig/network-scripts/ifcfg-bond0"
 
-    - name: remove ovs
-      yum:
-       name: openvswitch
-       state: absent
+        - name: restart bond0
+          command: bash -c "ifdown bond0 && ifup bond0"
 
-    - name: install vmware pkgs
-      command: bash -c "yum install -y /root/nsx-lcp-rhel76_x86_64/*.rpm"
+        - name: remove old nsx-switch.0 bridge network config
+          command: bash -c "ifdown nsx-switch.0"
+          ignore_errors: yes
 
-    - name: reload kernel
-      command: bash -c "/etc/init.d/openvswitch force-reload-kmod"
-    # thumbprint_manager_ip: 172.21.0.81
-    # username: admin
-    # password: P@ssw0rd@888
-    # thumbprint: 58e8ade2c8791177d85a297111bd74a0118f8811276a8bd13b39a3cdfc0242f5
-    - name: Join NSX host
-      command: nsxcli -c join management-plane "{{thumbprint_manager_ip}}" username "{{nsx_username}}" password "{{nsx_password}}" thumbprint "{{nsx_thumbprint}}"
+        - name: delete nsx-switch.0 config
+          file:
+            state: absent
+            path: "/etc/sysconfig/network-scripts/ifcfg-nsx-switch.0"
+
+        - name: remove old nsx-managed bridge network configure
+          command: bash -c "ifdown nsx-managed"
+          ignore_errors: yes
+
+        - name: delete nsx-managed configure
+          file:
+            state: absent
+            path: "/etc/sysconfig/network-scripts/ifcfg-nsx-managed"
+
+        - name: remove ovs
+          yum:
+            name: openvswitch
+            state: absent
+
+        - name: install vmware pkgs
+          command: bash -c "yum install -y /root/nsx-lcp-rhel76_x86_64/*.rpm"
+
+        - name: reload kernel
+          command: bash -c "/etc/init.d/openvswitch force-reload-kmod"
+        # thumbprint_manager_ip: 172.21.0.81
+        # username: admin
+        # password: P@ssw0rd@888
+        # thumbprint: 58e8ade2c8791177d85a297111bd74a0118f8811276a8bd13b39a3cdfc0242f5
+        - name: Join NSX host
+          command: nsxcli -c join management-plane "{{thumbprint_manager_ip}}" username "{{nsx_username}}" password "{{nsx_password}}" thumbprint "{{nsx_thumbprint}}"
+      when: ansible_host not in ts # when this node not in transport node address list configure it.

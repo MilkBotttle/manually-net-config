@@ -1,0 +1,7 @@
+- hosts: overcloud
+  gather_facts: no
+  tasks:
+    - name: get offline repository
+      get_url:
+        url="http://{{undercloud_local_ip}}:8088/000-ooo.repo"
+        dest="/etc/yum.repos.d/00-ooo.repo"

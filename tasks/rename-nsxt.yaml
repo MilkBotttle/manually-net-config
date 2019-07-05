@@ -1,0 +1,35 @@
+- name: get ts node json responses
+  uri:
+    url: "https://{{nsx_manager_vip}}/api/v1/transport-nodes/{{ node_id }}"
+    method: GET
+    user: "{{ nsx_username }}"
+    password: "{{ nsx_password }}"
+    validate_certs: no
+    force_basic_auth: yes
+  register: response_json
+- tempfile:
+    state: file
+  register: tempfile
+
+- copy:
+    content: "{{ response_json.json }}"
+    dest: "{{ tempfile.path }}"
+- name: generate body
+  shell: |
+    jq 'del(.maintenance_mode)' {{tempfile.path}} | jq 'del(.node_deployment_info)' | jq 'del(._create_user)' | jq 'del(._create_time)' | jq 'del(._last_modified_user)' | jq 'del(._last_modified_time)' | jq 'del(._protection)' | jq 'del(.is_overridden)' | jq 'del(._system_owned)' | jq '.display_name = "{{ display_name }}"'
+  register: json_body
+
+- name: Update display name
+  uri:
+    url: "https://{{nsx_manager_vip}}/api/v1/transport-nodes/{{ node_id }}"
+    method: PUT
+    body_format: json
+    body: "{{ json_body.stdout }}"
+    user: "{{ nsx_username }}"
+    password: "{{ nsx_password }}"
+    status_code: 200
+    validate_certs: no
+    force_basic_auth: yes
+- file:
+    path: "{{tempfile.path}}"
+    state: absent

@@ -1,0 +1,8 @@
+- name: Find server name
+  shell: |
+    source /home/stack/stackrc
+    openstack server list -c Name -f value --ip {{ item }}
+  register: r
+
+- set_fact:
+    nodenames: "{{ nodenames + [ r.stdout ] }}"

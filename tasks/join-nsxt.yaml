@@ -1,0 +1,15 @@
+- name: generate body
+  set_fact:
+    rendered_template: "{{ lookup('template', './templates/join-ts.json.j2') }}"
+
+- name: Join NSX-T transport nodes
+  uri:
+    url: "https://{{nsx_manager_vip}}/api/v1/transport-nodes"
+    method: POST
+    body_format: json
+    body: "{{ rendered_template }}"
+    user: "{{ nsx_username }}"
+    password: "{{ nsx_password }}"
+    status_code: 201
+    validate_certs: no
+    force_basic_auth: yes

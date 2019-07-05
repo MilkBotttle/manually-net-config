@@ -1,0 +1,13 @@
+- hosts: Compute
+  gather_facts: no
+  tasks:
+    - include_vars:
+        file: nsx_vars.yaml
+      tags: always
+    - include_vars:
+        file: reset_list.yaml
+    - name: Reset manageplane
+      shell: |
+        nsxcli -c reset management-plane {{thumbprint_manager_ip}} username {{nsx_username}} thumbprint {{nsx_thumbprint}} password {{nsx_password}}
+      become: true
+      when: inventory_hostname in reset_list

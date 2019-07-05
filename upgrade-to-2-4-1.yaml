@@ -1,0 +1,19 @@
+- hosts:
+  gather_facts: no
+  tasks:
+    - include_vars:
+        file: nsx_vars.yaml
+
+    - name: Install wget
+      yum:
+        name: wget
+        state: present
+
+    - name: Copy nsx-upgrade script
+      copy:
+        src: upgrade.sh
+        dest: /root/upgrade.sh
+
+    - name: Upgrade NSX-T componment
+      shell: |
+          bash /root/upgrade.sh http://172.26.77.146:8080/repository/2.4.1.0.0.13716575/HostComponents/rhel76_x86_64/nsx-lcp-2.4.1.0.0.13716576-rhel76_x86_64.tar.gz

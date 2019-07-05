@@ -1,0 +1,50 @@
+- hosts: localhost
+  gather_facts: no
+  tasks:
+    - include_vars:
+        file: nsx_vars.yaml
+
+    - set_fact:
+        ts: []
+        need_nsxt_host: []
+        all_compute_nodes: []
+
+    - set_fact:
+        all_compute_nodes: "{{ all_compute_nodes + [ hostvars[item].ctlplane_ip ] }}"
+      with_items: "{{groups['Compute']}}"
+
+    - name: Get transport nodes
+      uri:
+        url: "https://{{nsx_manager_vip}}/api/v1/transport-nodes"
+        method: GET
+        user: "{{nsx_username}}"
+        password: "{{nsx_password}}"
+        validate_certs: no
+        force_basic_auth: yes
+      register: transport_nodes_data
+
+      # Get all transport nodes ip_addresses
+    - set_fact:
+        ts: "{{ ts }} + {{ item.node_deployment_info.ip_addresses }}"
+      with_items: "{{ transport_nodes_data.json.results }}"
+      no_log: True
+
+    - set_fact:
+        need_nsxt_host: "{{ need_nsxt_host + [ item ] }}"
+      when: item not in ts
+      with_items: "{{ all_compute_nodes }}"
+
+    - name: Need Config for NSX-T hosts
+      debug: msg="{{ need_nsxt_host }}"
+
+    - set_fact:
+        nodenames: []
+    - include_tasks: tasks/show-server-name.yaml
+      with_items: "{{ need_nsxt_host }}"
+
+    - name: Nodes need to join NSXT-host
+      debug:
+        msg: "{{nodenames | sort() }}"
+    - name: Total count to join NSXT-hosts
+      debug:
+        msg: "{{nodenames | length }}"

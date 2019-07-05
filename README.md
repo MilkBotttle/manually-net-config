@@ -1,26 +1,32 @@
 # How to manually config compute network for nsx-trasport node
-
-1. After Overcloud deploy complete
+1. When overcloud deploy complete
 2. Edit `nsx_vars.yaml` with nsx config
 3. Create inventory file run:
 ```
-ansible-playbook create_inventory.yaml
+tripleo-ansible-inventory \
+  --config-file ansible.cfg \
+  --ansible_ssh_user heat-admin \
+  --stack rockycloud \
+  --static-yaml-inventory inventory.yaml
 ```
-4. Config compute:
+4. Check need add to NSX-T host are current
+This will list nodes name check they are current
 ```
-ansible-playbook -i hosts config_compute.yaml --become -e "@nsx_vars.yaml"
+ansible-playbook -i inventory.yaml list-need-configure-nodes.yaml
 ```
-
-5. After set trnsport node
+6. If need static route edit `set_static_route.yaml` than play
 ```
-ansible-playbook -i hosts start_patch.yaml --become
+ansible-playbook -i inventory.yaml set_static_route.yaml --become
 ```
-
-# Options in nsx_vars.yaml
-
-* nsx_manager_vip: NSX manager's VIP
-* thumbprint_manager_ip: Which manager get the thumbprint.
-* nsx_username: NSX admin user name
-* nsx_password: NSX admin user password
-* nsx_thumbprint: Tumbprint for join host
-* repo_file_url: Where to get the offline repo to install requirement package
+5. Config compute to NSX-T host:
+```
+ansible-playbook -i inventory.yaml config_compute.yaml --become
+```
+5. Add transport node
+```
+ansible-playbook -i inventory.yaml add_ts.yaml
+```
+6. After set trnsport node start ovs patch and set mtu
+```
+ansible-playbook -i inventory.yaml start_patch.yaml --become
+```

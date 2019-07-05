@@ -1,0 +1,7 @@
+- hosts: Compute
+  gather_facts: no
+  tasks:
+    - name: start nsx-t service
+      shell: |
+        systemctl restart nsx-exporter nsx-nestdb nsx-platform-client nsx-proxy nsx-sfhc nsx-opsagent nsx-agent nsx-mpa
+

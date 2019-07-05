@@ -1,0 +1,41 @@
+{
+  "resource_type": "TransportNode",
+  "display_name": "{{ display_name }}",
+  "description": "NSX configured Transport Node",
+  "host_switch_spec": {
+    "resource_type": "StandardHostSwitchSpec",
+    "host_switches": [
+      {
+         "host_switch_profile_ids": [
+             {
+                "value": "{{ uplink_switch_profile_id }}",
+                "key": "UplinkHostSwitchProfile"
+             },
+             {
+                "value": "{{ lldp_host_switch_profile_id }}",
+                "key": "LldpHostSwitchProfile"
+             }
+           ],
+         "host_switch_name": "{{host_switch_name}}",
+         "pnics": [
+          {
+             "device_name": "{{ device_name }}",
+             "uplink_name": "{{ uplink_name }}"
+           }
+         ],
+         "ip_assignment_spec": {
+            "resource_type": "StaticIpPoolSpec",
+            "ip_pool_id": "{{ ip_pool_id }}"
+           }
+        }
+      ]
+    },
+  "transport_zone_endpoints": [
+    {
+     "transport_zone_id": "{{ transport_zone_id }}"
+    }
+  ],
+  "node_id": "{{ node_id }}"
+}
+
+

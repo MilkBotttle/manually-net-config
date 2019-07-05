@@ -1,0 +1,59 @@
+- hosts: localhost
+  gather_facts: no
+  tasks:
+    - include_vars:
+        file: nsx_vars.yaml
+
+    - set_fact:
+        all_node_id: []
+        all_node_fqdn: []
+        all_ts_id: []
+        all_compute_nodes: []
+
+    - set_fact:
+        all_compute_nodes: "{{ all_compute_nodes + [ hostvars[item].ctlplane_ip ] }}"
+      with_items: "{{groups['Compute']}}"
+
+    - name: Get all nodes
+      uri:
+        url: "https://{{nsx_manager_vip}}/api/v1/fabric/nodes"
+        method: GET
+        user: "{{nsx_username}}"
+        password: "{{nsx_password}}"
+        validate_certs: no
+        force_basic_auth: yes
+      register: all_nodes
+
+    - name: Get all transport nodes
+      uri:
+        url: "https://{{nsx_manager_vip}}/api/v1/transport-nodes"
+        method: GET
+        user: "{{nsx_username}}"
+        password: "{{nsx_password}}"
+        validate_certs: no
+        force_basic_auth: yes
+      register: ts_nodes
+
+    - set_fact:
+        all_ts_id: "{{ all_ts_id + [ item.id ] }}"
+      with_items: "{{ ts_nodes.json.results }}"
+
+    # Get all transport nodes ip_addresses
+    - set_fact:
+        all_node_id: "{{ all_node_id + [ item.id ] }}"
+        all_node_fqdn: "{{ all_node_fqdn + [ item.fqdn ] }}"
+      when: (item.resource_type == "HostNode") and (item.id not in all_ts_id) and (item.ip_addresses[0] in all_compute_nodes)
+      with_items: "{{ all_nodes.json.results }}"
+
+    - fail:
+        msg: "There is no compute node need to join transport node!"
+      when: (all_node_fqdn| length) == 0 or (all_node_id|length) == 0
+
+    - include_tasks: tasks/join-nsxt.yaml
+      vars:
+        display_name: "{{ all_node_fqdn[my_index] }}"
+        node_id: "{{ all_node_id[my_index] }}"
+      with_items: "{{ all_node_id }}"
+      loop_control:
+        index_var: my_index
+

@@ -1,0 +1,8 @@
+- hosts: Compute
+  gather_facts: no
+  tasks:
+    - name: set static route
+      shell: |
+        ip ro add 172.18.64.8 via 172.18.63.254 dev eno1
+        ip ro add 172.26.0.0/16 via 172.18.63.254 dev eno1
+      ignore_errors: yes

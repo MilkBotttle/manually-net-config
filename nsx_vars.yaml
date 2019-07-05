@@ -1,6 +1,15 @@
-nsx_manager_vip: 172.21.0.80
-thumbprint_manager_ip: 172.21.0.81
+nsx_manager_vip: 172.26.77.145
+thumbprint_manager_ip: 172.26.77.147
 nsx_username: admin
 nsx_password: P@ssw0rd@888
-nsx_thumbprint: 58e8ade2c8791177d85a297111bd74a0118f8811276a8bd13b39a3cdfc0242f5
-repo_file_url: "http://172.18.64.8:8088/000-ooo.repo"
+nsx_thumbprint: b7347b79d376fad24b0f50f6ff8cf2f2d95d1c51dbc1b1626913a39dd24c004c
+undercloud_local_ip: 172.18.64.8
+
+# join TS
+transport_zone_id: 44da710f-405e-499e-8ba3-85304dcac1a8
+ip_pool_id: c1d0fdba-6be8-4026-a8c8-abbec5d9ef1d
+device_name: bond0
+uplink_name: uplink-1
+host_switch_name: Overlay_Switch
+uplink_switch_profile_id: 183838ef-dfdb-4599-9203-9aa1a0b7b37e
+lldp_host_switch_profile_id: 306c9a2a-7c3d-47f2-a1e1-0b27ce4c3914

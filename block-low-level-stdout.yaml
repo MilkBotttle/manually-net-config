@@ -1,0 +1,15 @@
+- hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: check 'kernel.printk = 3 4 1 3' in /etc/sysctl.conf
+      shell: |
+          grep 'kernel.printk = 3 4 1 3' /etc/sysctl.conf
+      ignore_errors: yes
+      register: r
+      become: true
+
+    - name: Set  /etc/sysctl.conf
+      shell: |
+          echo 'kernel.printk = 3 4 1 3' >> /etc/sysctl.conf
+      when: r.rc == 1
+      become: true
